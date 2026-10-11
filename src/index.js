@@ -26,7 +26,7 @@ const safeEqual = (a, b) => {
 /**
  * @typedef {object} Options
  * @property {string} secret              HMAC key, >= 16 chars. Keep it server-side.
- * @property {number} [timeLimitMs=10000] Server-measured budget from issue() to verify().
+ * @property {number} [timeLimitMs=8000] Server-measured budget from issue() to verify().
  * @property {number} [responseTtlMs=120000] Lifetime of the response token handed to the form.
  * @property {{ consume(id: string, ttlMs: number): Promise<boolean> }} [store] Single-use enforcement.
  * @property {() => number} [now]         Clock, for tests.
@@ -37,7 +37,7 @@ const safeEqual = (a, b) => {
 export function createAgentCaptcha(options) {
   const {
     secret,
-    timeLimitMs = 10_000,
+    timeLimitMs = 8_000,
     responseTtlMs = 120_000,
     store = new MemoryReplayStore(),
     now = Date.now,

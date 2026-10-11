@@ -6,7 +6,7 @@ import { toNodeListener } from '../src/node.js';
 
 const captcha = createAgentCaptcha({
   secret: process.env.CAPTCHA_SECRET ?? randomBytes(32).toString('hex'),
-  timeLimitMs: Number(process.env.TIME_LIMIT_MS ?? 10_000),
+  timeLimitMs: Number(process.env.TIME_LIMIT_MS ?? 8_000),
 });
 const captchaRoutes = toNodeListener(createHandler(captcha, { basePath: '/api/agent-captcha' }));
 

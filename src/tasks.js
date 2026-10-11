@@ -1,6 +1,10 @@
-// One compact puzzle per challenge. Each puzzle chains 2-3 trivial operations over a list of ~10-18
-// items: a language model answers it in a single pass, a human needs 15-30s of careful scanning.
+// One compact puzzle per challenge. Each puzzle chains 2-3 trivial, word-level operations over a list of
+// 30-40 items: a language model answers it in a single pass (1-3s), a human needs a minute or more of
+// careful scanning. Item count is the lever: it barely costs a model anything but scales linearly for a human.
 // Phrasing is randomised per challenge so answers/regexes cannot be cached.
+//
+// Deliberately NO letter-level operations (reversing words, counting characters): LLMs get those wrong,
+// and a false rejection of a real agent is a bug.
 
 const ZWSP = '\u200b';
 
@@ -40,27 +44,27 @@ export function normalizeAnswer(value) {
 }
 
 const KINDS = {
-  /** Two filters, then sort + join. */
+  /** Three filters over 36 words, then sort + join. */
   filterSort({ sample, pick, n }) {
     let words, kept;
     do {
-      words = sample(WORDS, 16);
-      kept = words.filter((w) => w.length % 2 === 0 && w.includes('e'));
-    } while (kept.length < 3 || kept.length > 6);
+      words = sample(WORDS, 36);
+      kept = words.filter((w) => w.length % 2 === 0 && w.includes('e') && w[0] <= 'm');
+    } while (kept.length < 4 || kept.length > 9);
     const rule = pick([
-      `${n('Keep only the words that have an even number of letters and contain the letter')} "e". ${n('Sort them alphabetically and join them with hyphens')}.`,
-      `${n('From the list, select words with an even letter count that also contain')} "e", ${n('then output them in alphabetical order separated by hyphens')}.`,
+      `${n('Keep only the words that have an even number of letters, contain the letter')} "e" ${n('and start with a letter from a to m')}. ${n('Sort them alphabetically and join them with hyphens')}.`,
+      `${n('From the list, select words with an even letter count that also contain')} "e" ${n('and begin with a letter between a and m')}, ${n('then output them in alphabetical order separated by hyphens')}.`,
     ]);
     return { instruction: rule, data: words.join(' '), answer: [...kept].sort().join('-') };
   },
 
-  /** Filter by two arithmetic properties, then sum. */
+  /** Two arithmetic filters over 36 numbers, then sum. */
   numbers({ int, pick, n }) {
     let nums, kept;
     do {
-      nums = Array.from({ length: 14 }, () => int(10, 99));
+      nums = Array.from({ length: 36 }, () => int(10, 99));
       kept = nums.filter((x) => x % 2 === 1 && x % 3 === 0);
-    } while (kept.length < 3 || kept.length > 5);
+    } while (kept.length < 5 || kept.length > 8);
     const rule = pick([
       `${n('Add up only the numbers that are odd and divisible by 3')}.`,
       `${n('Sum the values that are both odd and a multiple of 3, ignoring the rest')}.`,
@@ -68,53 +72,46 @@ const KINDS = {
     return { instruction: rule, data: nums.join(' '), answer: String(kept.reduce((a, b) => a + b, 0)) };
   },
 
-  /** Strided pick, initials, reverse. */
+  /** Strided pick over 30 words, initials, reverse the list. */
   stride({ sample, pick, n }) {
-    const words = sample(WORDS, 18);
-    const picked = [1, 4, 7, 10, 13, 16].map((i) => words[i]);
+    const words = sample(WORDS, 30);
+    const picked = words.filter((_, i) => i % 3 === 1); // 2nd, 5th, 8th, ... (1-based)
     const rule = pick([
       `${n('Starting from the 2nd word, take every 3rd word')} (2nd, 5th, 8th, ...). ${n('Write the first letter of each, in reverse order, as one string')}.`,
-      `${n('Take the 2nd, 5th, 8th, 11th, 14th and 17th words')}. ${n('Reverse their order and output only their first letters joined together')}.`,
+      `${n('Pick the words at positions 2, 5, 8, 11 and so on, counting from 1')}. ${n('Reverse their order and output only their first letters joined together')}.`,
     ]);
     return { instruction: rule, data: words.join(' '), answer: picked.map((w) => w[0]).reverse().join('') };
   },
 
-  /** Drop numbers, filter by initial, reverse the list. */
+  /** Drop numbers, filter by initial, reverse the list; 40 mixed tokens. */
   mixed({ int, sample, pick, n }) {
     let tokens, kept;
     do {
-      const words = sample(WORDS, 12);
-      const nums = Array.from({ length: 6 }, () => String(int(1, 99)));
-      tokens = sample([...words, ...nums], 18);
-      kept = tokens.filter((t) => /^[a-z]/.test(t) && t[0] <= 'm');
-    } while (kept.length < 3 || kept.length > 7);
+      const words = sample(WORDS, 30);
+      const nums = Array.from({ length: 10 }, () => String(int(1, 99)));
+      tokens = sample([...words, ...nums], 40);
+      kept = tokens.filter((t) => /^[a-z]/.test(t) && t[0] <= 'f');
+    } while (kept.length < 5 || kept.length > 10);
     const rule = pick([
-      `${n('Ignore all numbers. Keep only the words that start with a letter from a to m, then list them in reverse order separated by commas')}.`,
-      `${n('Discard the numbers, then keep words whose first letter is between a and m, and print them back to front, comma separated')}.`,
+      `${n('Ignore all numbers. Keep only the words that start with a letter from a to f, then list them in reverse order separated by commas')}.`,
+      `${n('Discard the numbers, then keep words whose first letter is between a and f, and print them back to front, comma separated')}.`,
     ]);
     return { instruction: rule, data: tokens.join(' '), answer: [...kept].reverse().join(',') };
   },
 
-  /** Most and fewest vowels (both unique), word-level answer. */
-  vowels({ sample, pick, n }) {
-    const count = (w) => (w.match(/[aeiou]/g) ?? []).length;
-    let words, most, fewest;
-    for (;;) {
-      words = sample(WORDS, 10);
-      const counts = words.map(count);
-      const hi = Math.max(...counts);
-      const lo = Math.min(...counts);
-      if (counts.filter((c) => c === hi).length === 1 && counts.filter((c) => c === lo).length === 1) {
-        most = words[counts.indexOf(hi)];
-        fewest = words[counts.indexOf(lo)];
-        break;
-      }
-    }
+  /** Filter by length over 30 words, then alphabetical first and last of the survivors. */
+  extremes({ sample, pick, n }) {
+    let words, six;
+    do {
+      words = sample(WORDS, 30);
+      six = words.filter((w) => w.length === 6);
+    } while (six.length < 4);
+    const sorted = [...six].sort();
     const rule = pick([
-      `${n('Find the word with the most vowels')} (a, e, i, o, u) ${n('and the word with the fewest vowels')}. ${n('Reply with the first, a hyphen, then the second')}.`,
-      `${n('Which word has the highest vowel count and which the lowest')}? ${n('Answer as highest-lowest')}.`,
+      `${n('Among the words that have exactly 6 letters, find the one that comes first alphabetically and the one that comes last')}. ${n('Reply as first-last, joined by a hyphen')}.`,
+      `${n('Keep only 6-letter words')}. ${n('Of those, which is alphabetically earliest and which is latest')}? ${n('Answer as earliest-latest')}.`,
     ]);
-    return { instruction: rule, data: words.join(' '), answer: `${most}-${fewest}` };
+    return { instruction: rule, data: words.join(' '), answer: `${sorted[0]}-${sorted[sorted.length - 1]}` };
   },
 };
 

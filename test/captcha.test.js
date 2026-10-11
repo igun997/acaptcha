@@ -83,16 +83,13 @@ test('responses expire, and challenge tokens cannot be used as responses', async
 test('every puzzle kind is deterministic and its answer follows from the data it shows', () => {
   const words = (s) => s.split(' ');
   const checks = {
-    filterSort: (data) => words(data).filter((w) => w.length % 2 === 0 && w.includes('e')).sort().join('-'),
+    filterSort: (data) => words(data).filter((w) => w.length % 2 === 0 && w.includes('e') && w[0] <= 'm').sort().join('-'),
     numbers: (data) => String(words(data).map(Number).filter((x) => x % 2 === 1 && x % 3 === 0).reduce((a, b) => a + b, 0)),
     stride: (data) => words(data).filter((_, i) => i % 3 === 1).map((w) => w[0]).reverse().join(''),
-    mixed: (data) => words(data).filter((t) => /^[a-z]/.test(t) && t[0] <= 'm').reverse().join(','),
-    vowels: (data) => {
-      const v = (w) => (w.match(/[aeiou]/g) ?? []).length;
-      const ws = words(data);
-      const most = ws.reduce((a, b) => (v(b) > v(a) ? b : a));
-      const fewest = ws.reduce((a, b) => (v(b) < v(a) ? b : a));
-      return `${most}-${fewest}`;
+    mixed: (data) => words(data).filter((t) => /^[a-z]/.test(t) && t[0] <= 'f').reverse().join(','),
+    extremes: (data) => {
+      const six = words(data).filter((w) => w.length === 6).sort();
+      return `${six[0]}-${six[six.length - 1]}`;
     },
   };
   assert.deepEqual(Object.keys(checks).sort(), [...PUZZLE_KINDS].sort());
