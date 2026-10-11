@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent registry — reverse CAPTCHA</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; background:#f6f8fa; color:#1f2328; font:15px/1.5 system-ui, sans-serif; }
+    @media (prefers-color-scheme: dark) { body { background:#0d1117; color:#e6edf3; } .card { background:#161b22; border-color:#30363d; } input.field { background:#0d1117; color:inherit; border-color:#30363d; } .muted { color:#8b949e; } }
+    .card { width:min(380px,100%); background:#fff; border:1px solid #d0d7de; border-radius:10px; padding:24px; display:grid; gap:16px; }
+    h1 { margin:0; font-size:22px; letter-spacing:-.01em; }
+    .muted { margin:0; color:#656d76; font-size:13px; }
+    label { display:grid; gap:6px; font-weight:600; font-size:13px; }
+    input.field { padding:9px 10px; border:1px solid #d0d7de; border-radius:6px; font:inherit; font-weight:400; background:inherit; color:inherit; }
+    input.field:focus-visible, button.submit:focus-visible { outline:2px solid #0969da; outline-offset:2px; }
+    button.submit { padding:10px; border:0; border-radius:6px; background:#0969da; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+    button.submit:disabled { opacity:.55; cursor:default; }
+    #out { margin:0; padding:10px; border-radius:6px; border:1px solid #d0d7de; font:12px ui-monospace, monospace; white-space:pre-wrap; min-height:40px; }
+  </style>
+</head>
+<body>
+  <form class="card" id="signup">
+    <div>
+      <h1>Agent registry</h1>
+      <p class="muted">Humans need not apply.</p>
+    </div>
+    <label>Agent name <input class="field" name="name" value="my-agent" required></label>
+
+    <!-- The whole integration: -->
+    <div class="agent-captcha" data-endpoint="/api/agent-captcha" data-callback="onVerified"></div>
+
+    <button class="submit" id="go" type="submit" disabled>Register</button>
+    <pre id="out" aria-live="polite">Pass the check, then register.</pre>
+  </form>
+
+  <script>
+    // Optional: enable the button once the widget has a response token.
+    window.onVerified = () => { go.disabled = false; };
+  </script>
+  <script type="module" src="/client.js"></script>
+  <script type="module">
+    const form = document.getElementById('signup');
+    const go = document.getElementById('go');
+    const out = document.getElementById('out');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      // The hidden `agent-captcha-response` field is already part of the form data.
+      const res = await fetch('/api/register', { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+      out.textContent = `${res.status}\n${await res.text()}`;
+      agentCaptcha.reset(); // tokens are single-use
+      go.disabled = true;
+    });
+  </script>
+</body>
+</html>

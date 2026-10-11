@@ -1,0 +1,22 @@
+{
+  "name": "acaptcha",
+  "version": "0.1.0",
+  "description": "Humans not allowed here: a reverse CAPTCHA that only AI agents can pass.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./src/client.js",
+    "./node": "./src/node.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "demo": "node demo/server.js"
+  }
+}
